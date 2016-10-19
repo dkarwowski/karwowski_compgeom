@@ -68,6 +68,9 @@ class OpenGL:
         self.proj_uni  = glGetUniformLocation(self.shader, b'proj')
 
         glEnable(GL_DEPTH_TEST)
+        self.proj()
+        self.view(Vector3(1.2, 1.2, 1.2), Vector3(-1.2, -1.2, -1.2), Vector3(0, 0, 1))
+        self.model()
 
     def view(self, pos, at, up):
         view_mat = Matrix4.new_look_at(pos, at, up)
@@ -79,8 +82,59 @@ class OpenGL:
         proj_gl  = (GLfloat * len(proj_mat[:]))(*proj_mat[:])
         glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, proj_gl)
 
-    def model(self, pos=Matrix4.new_identity(), rot=0, scale=1.0):
-        model_mat = pos.new_scale(scale, scale, scale).new_rotatez(rot)
+    def model(self, pos=Vector3(0, 0, 0), rotz=0, scale=1.0):
+        model_mat = Matrix4\
+                .new_identity()\
+                .new_translate(*pos[:])\
+                .new_scale(scale, scale, scale)\
+                .new_rotatez(rotz)
         model_gl  = (GLfloat * len(model_mat[:]))(*model_mat[:])
         glUniformMatrix4fv(self.model_uni, 1, GL_FALSE, model_gl)
 
+
+class Mesh:
+    def __init__(self, gl, vertices=[], pos=Vector3(0, 0, 0), rot=Vector3(0, 0, 0)):
+        self.gl = gl
+        self.vertices = vertices
+
+        self.glsetup = False
+        self.vao = GLuint()
+        self.vbo = GLuint()
+        #self.ebo = GLuint()
+
+        self.pos = pos
+        self.rot = rot
+
+    def _setup_gl(self):
+        if not self.vertices:
+            return
+
+        self.glsetup = True
+        glGenVertexArrays(1, pointer(self.vao))
+        glGenBuffers(1, pointer(self.vbo))
+        #glGenBuffers(1, pointer(self.ebo))
+
+        glBindVertexArray(self.vao)
+        # bind buffer data
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        verts_gl = (GLfloat * len(self.vertices))(*self.vertices)
+        glBufferData(GL_ARRAY_BUFFER, sizeof(verts_gl), verts_gl, GL_STATIC_DRAW)
+
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 0)
+
+        glEnableVertexAttribArray(1)
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 3 * sizeof(GLfloat))
+
+        glBindVertexArray(0)
+
+    def draw(self):
+        if not self.glsetup:
+            self._setup_gl()
+        if not self.glsetup:
+            return
+
+        glBindVertexArray(self.vao)
+        self.gl.model(pos=self.pos, rotz=self.rot.z, scale=0.5)
+        glDrawArrays(GL_TRIANGLES, 0, len(self.vertices)//6)
+        glBindVertexArray(0)
