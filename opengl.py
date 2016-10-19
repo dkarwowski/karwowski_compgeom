@@ -68,19 +68,24 @@ class OpenGL:
         self.proj_uni  = glGetUniformLocation(self.shader, b'proj')
 
         glEnable(GL_DEPTH_TEST)
-        self.proj()
-        self.view(Vector3(1.2, 1.2, 1.2), Vector3(-1.2, -1.2, -1.2), Vector3(0, 0, 1))
+        self.perspective()
+        self.view()
         self.model()
 
-    def view(self, pos, at, up):
+    def view(self, pos=Vector3(1, 1, 1), at=Vector3(0, 0, 0), up=Vector3(0, 0, 1)):
         view_mat = Matrix4.new_look_at(pos, at, up)
         view_gl  = (GLfloat * len(view_mat[:]))(*view_mat[:])
         glUniformMatrix4fv(self.view_uni, 1, GL_FALSE, view_gl)
 
-    def proj(self, fov=math.pi/2, ratio=16/9, fnear=0.1, ffar=10.0):
+    def perspective(self, fov=math.pi/2, ratio=16/9, fnear=0.1, ffar=10.0):
         proj_mat = Matrix4.new_perspective(fov, ratio, fnear, ffar)
         proj_gl  = (GLfloat * len(proj_mat[:]))(*proj_mat[:])
         glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, proj_gl)
+
+    def orthographic(self, scale=1.0, ratio=16/9, fnear=0.1, ffar=10.0):
+        ortho_mat = Matrix4.new_orthographic(scale, ratio, fnear, ffar)
+        ortho_gl  = (GLfloat * len(ortho_mat[:]))(*ortho_mat[:])
+        glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, ortho_gl)
 
     def model(self, pos=Vector3(0, 0, 0), rotz=0, scale=1.0):
         model_mat = Matrix4()\

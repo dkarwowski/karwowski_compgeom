@@ -22,10 +22,11 @@ mouse_sensitivity = 0.005
 
 # game objects
 opengl = OpenGL()
-meshes = [Mesh(opengl, pos=Vector3(-1.0, 0, 0)), Mesh(opengl, pos=Vector3(1.0, 0, 0))]
+opengl.orthographic()
+meshes = [Mesh(opengl, pos=Vector3(-0.85, 0, 0)), Mesh(opengl, pos=Vector3(0.85, 0, 0))]
 
 cam_pos = Vector3(0, -1.0, 1.0)
-cam_at  = -cam_pos # so that we look at 0
+cam_at  = Vector3(0, 1.0, -0.5)
 cam_up  = Vector3(0, 0, 1)
 
 @window.event
