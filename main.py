@@ -22,10 +22,10 @@ mouse_sensitivity = 0.005
 
 # game objects
 opengl = OpenGL()
-meshes = [Mesh(opengl), Mesh(opengl)]
+meshes = [Mesh(opengl, pos=Vector3(-1.0, 0, 0)), Mesh(opengl, pos=Vector3(1.0, 0, 0))]
 
-cam_pos = Vector3(1.2, 1.2, 1.2)
-cam_at  = -cam_pos
+cam_pos = Vector3(0, -1.0, 1.0)
+cam_at  = -cam_pos # so that we look at 0
 cam_up  = Vector3(0, 0, 1)
 
 @window.event
@@ -42,13 +42,13 @@ def on_mouse_release(x, y, button, modifiers):
 
 @window.event
 def on_mouse_drag(x, y, dx, dy, button, modifiers):
-    global meshes
+    global meshes, mouse_sensitivity
     for m in meshes:
         m.rot.z += dx * mouse_sensitivity
 
 @window.event
 def on_draw():
-    global rotation, meshes
+    global meshes
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for m in meshes:
         m.draw()
@@ -60,18 +60,56 @@ def update(dt):
         cam_pos += cam_at * dt
     if keys[key.S]:
         cam_pos -= cam_at * dt
+    if keys[key.A]:
+        cam_pos -= cam_at.cross(cam_up).normalized() * dt
+    if keys[key.D]:
+        cam_pos += cam_at.cross(cam_up).normalized() * dt
 
     opengl.view(cam_pos, cam_pos + cam_at, cam_up)
 
 # generate meshes
 meshes[0].vertices = [
-        -0.5,  0.5, 0.1, 1.0, 0.0, 0.0,
-        -0.5, -0.5, 0.2, 1.0, 0.0, 0.0,
-         0.5, -0.5, 0.3, 1.0, 0.0, 0.0,
-         0.5, -0.5, 0.3, 0.0, 1.0, 0.0,
-         0.5,  0.5, 0.4, 0.0, 1.0, 0.0,
-        -0.5,  0.5, 0.1, 0.0, 1.0, 0.0
+        -1.0,  1.0, 0.2, 1.0, 0.0, 0.0,
+        -1.0, -1.0, 0.3, 1.0, 0.0, 0.0,
+         1.0, -1.0, 0.4, 1.0, 0.0, 0.0,
+
+         1.0, -1.0, 0.4, 0.0, 1.0, 0.0,
+         1.0,  1.0, 0.5, 0.0, 1.0, 0.0,
+        -1.0,  1.0, 0.2, 0.0, 1.0, 0.0,
+
+        -1.0,  1.0, 0.2, 0.3, 0.3, 0.3,
+        -1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+        -1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+
+        -1.0,  1.0, 0.2, 0.3, 0.3, 0.3,
+        -1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+        -1.0, -1.0, 0.3, 0.3, 0.3, 0.3,
+
+        -1.0, -1.0, 0.3, 0.3, 0.3, 0.3,
+        -1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+         1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+
+        -1.0, -1.0, 0.3, 0.3, 0.3, 0.3,
+         1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+         1.0, -1.0, 0.4, 0.3, 0.3, 0.3,
+
+         1.0, -1.0, 0.4, 0.3, 0.3, 0.3,
+         1.0, -1.0, 0.0, 0.3, 0.3, 0.3,
+         1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+
+         1.0, -1.0, 0.4, 0.3, 0.3, 0.3,
+         1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+         1.0,  1.0, 0.5, 0.3, 0.3, 0.3,
+
+         1.0,  1.0, 0.5, 0.3, 0.3, 0.3,
+         1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+        -1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+
+         1.0,  1.0, 0.5, 0.3, 0.3, 0.3,
+        -1.0,  1.0, 0.0, 0.3, 0.3, 0.3,
+        -1.0,  1.0, 0.2, 0.3, 0.3, 0.3
         ]
+meshes[1].vertices = meshes[0].vertices
 
 pyglet.clock.schedule_interval(update, 1/60)
 pyglet.app.run()

@@ -83,11 +83,10 @@ class OpenGL:
         glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, proj_gl)
 
     def model(self, pos=Vector3(0, 0, 0), rotz=0, scale=1.0):
-        model_mat = Matrix4\
-                .new_identity()\
-                .new_translate(*pos[:])\
-                .new_scale(scale, scale, scale)\
-                .new_rotatez(rotz)
+        model_mat = Matrix4()\
+                .translate(*pos[:])\
+                .rotatez(rotz)\
+                .scale(scale, scale, scale)
         model_gl  = (GLfloat * len(model_mat[:]))(*model_mat[:])
         glUniformMatrix4fv(self.model_uni, 1, GL_FALSE, model_gl)
 
