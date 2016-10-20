@@ -23,7 +23,10 @@ mouse_sensitivity = 0.005
 # game objects
 opengl = OpenGL()
 opengl.orthographic()
-meshes = [Mesh(opengl, pos=Vector3(-0.85, 0, 0)), Mesh(opengl, pos=Vector3(0.85, 0, 0))]
+meshes = [
+        Mesh(opengl, pos=Vector3(-0.85, 0, 0), scale=0.5),
+        Mesh(opengl, pos=Vector3(0.85, 0, 0), scale=0.5)
+        ]
 
 cam_pos = Vector3(0, -1.0, 1.0)
 cam_at  = Vector3(0, 1.0, -0.5)
@@ -45,22 +48,41 @@ def on_mouse_release(x, y, button, modifiers):
 def on_mouse_drag(x, y, dx, dy, button, modifiers):
     global meshes, mouse_sensitivity
     for m in meshes:
-        m.rot.z += dx * mouse_sensitivity
+        m.rotz += dx * mouse_sensitivity
 
 @window.event
 def on_draw():
     global meshes
+
+    # draw 3d
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for m in meshes:
         m.draw()
+
+    # draw ui
+    glClear(GL_DEPTH_BUFFER_BIT)
+    opengl.orthographic(scale=window.height)
+    opengl.view(
+            pos=Vector3(window.width/2, window.height/2, 1),
+            at=Vector3(window.width/2, window.height/2, 0),
+            up=Vector3(0, 1, 0))
+    v = [
+            99.5, 99.5, 0, 0.9, 0.9, 0.9,
+            99.5,  9.5, 0, 0.9, 0.9, 0.9,
+             9.5, 99.5, 0, 0.9, 0.9, 0.9
+            ]
+    mesh = Mesh(opengl, vertices=v, pos=Vector3(window.width/2, window.height/2, 0))
+    mesh.draw()
+    opengl.view(cam_pos, cam_pos + cam_at, cam_up)
+    opengl.orthographic(scale=1.0)
 
 def update(dt):
     global cam_pos, cam_at, cam_up, opengl
 
     if keys[key.W]:
-        cam_pos += cam_at * dt
+        cam_pos += cam_at.normalized() * dt
     if keys[key.S]:
-        cam_pos -= cam_at * dt
+        cam_pos -= cam_at.normalized() * dt
     if keys[key.A]:
         cam_pos -= cam_at.cross(cam_up).normalized() * dt
     if keys[key.D]:

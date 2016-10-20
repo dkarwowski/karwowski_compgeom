@@ -97,7 +97,7 @@ class OpenGL:
 
 
 class Mesh:
-    def __init__(self, gl, vertices=[], pos=Vector3(0, 0, 0), rot=Vector3(0, 0, 0)):
+    def __init__(self, gl, vertices=[], pos=Vector3(0, 0, 0), rotz=0, scale=1):
         self.gl = gl
         self.vertices = vertices
 
@@ -107,7 +107,8 @@ class Mesh:
         #self.ebo = GLuint()
 
         self.pos = pos
-        self.rot = rot
+        self.rotz = rotz
+        self.scale = scale
 
     def _setup_gl(self):
         if not self.vertices:
@@ -139,6 +140,6 @@ class Mesh:
             return
 
         glBindVertexArray(self.vao)
-        self.gl.model(pos=self.pos, rotz=self.rot.z, scale=0.5)
+        self.gl.model(pos=self.pos, rotz=self.rotz, scale=self.scale)
         glDrawArrays(GL_TRIANGLES, 0, len(self.vertices)//6)
         glBindVertexArray(0)
