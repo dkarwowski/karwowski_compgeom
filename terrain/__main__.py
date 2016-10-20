@@ -6,8 +6,8 @@ import pyglet
 from pyglet.gl import *
 from pyglet.window import mouse, key
 
-from opengl import OpenGL, Mesh
-from euclid import *
+from .opengl import OpenGL, Mesh
+from .euclid import *
 
 # set up a window
 config = pyglet.gl.Config(sample_buffers=1, samples=4, depth_size=24)
