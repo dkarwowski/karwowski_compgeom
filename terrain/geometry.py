@@ -34,12 +34,10 @@ class Vertex(Point3):
             insert.twin.next = new_he
             insert.twin.next.prev = new_he.twin
             self.halfedges.insert(inserti + 1, new_he)
-            print(inserti, insert)
         else:
             new_he.twin.next = new_he
             new_he.prev = new_he.twin
             self.halfedges.append(new_he)
-        print(*self.halfedges)
 
 class Halfedge:
     def __init__(self, origin):
@@ -50,6 +48,9 @@ class Halfedge:
 
     def __str__(self):
         return "Halfedge(" + str(self.origin) + ", " + str(self.twin.origin) + ")"
+
+    def __repr__(self):
+        return str(self)
 
     def vertices(self):
         if not self.twin:
