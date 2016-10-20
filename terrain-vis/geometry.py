@@ -7,45 +7,39 @@ def ccw(a, b, c):
 class Vertex(Point3):
     def __init__(self, x, y, height):
         super(Point3, self).__init__(x, y, height)
-        self.halfedge = None
+        self.halfedges = []
 
     def __hash__(self):
         return hash((x, y, height))
 
-    def halfedges(self):
-        if not self.halfedge:
-            return []
-
-        res = [self.halfedge]
-        current = self.halfedge.twin.next
-        while current != res[0]:
-            res += [current]
-            current = current.twin.next
-        return res
-
     def add_halfedge(self, new_he):
-        hes = self.halfedges()
         insert = None
-        if len(hes) == 1:
-            insert = hes[0]
-        elif len(hes) > 1:
+        inserti = -1
+        if len(self.halfedges) == 1:
+            insert = self.halfedges[0]
+            inserti = 0
+        elif len(self.halfedges) > 1:
             last = False
-            for he in hes:
-                curr = ccw(he.origin, he.twin.origin, new_he.origin) > 0
+            for i,he in enumerate(self.halfedges):
+                curr = ccw(he.origin, he.next.origin, new_he.origin) > 0
                 if last and not curr:
-                    insert = he.twin
+                    inserti = i
+                    insert = he
                     break
                 last = curr
 
         if insert:
-            insert.next.prev = new_he.twin
-            new_he.twin.next = insert.next
-            insert.next = new_he
-            new_he.prev = insert
+            new_he.prev = insert.twin
+            new_he.twin.next = insert.twin.next
+            insert.twin.next = new_he
+            insert.twin.next.prev = new_he.twin
+            self.halfedges.insert(inserti + 1, new_he)
+            print(inserti, insert)
         else:
             new_he.twin.next = new_he
             new_he.prev = new_he.twin
-            self.halfedge = new_he
+            self.halfedges.append(new_he)
+        print(*self.halfedges)
 
 class Halfedge:
     def __init__(self, origin):
@@ -55,7 +49,7 @@ class Halfedge:
         self.next = None
 
     def __str__(self):
-        return "Halfedge(" + str(self.origin) + ")"
+        return "Halfedge(" + str(self.origin) + ", " + str(self.twin.origin) + ")"
 
     def vertices(self):
         if not self.twin:
@@ -74,8 +68,7 @@ class Graph:
         self.add_edge(self.vertices[1], self.vertices[2])
         self.add_edge(self.vertices[2], self.vertices[3])
         self.add_edge(self.vertices[3], self.vertices[0])
-        self.add_edge(self.vertices[0], self.vertices[2])
-        self._active_face = self.vertices[0].halfedge
+        self._active_face = self.vertices[0].halfedges[0]
 
     def add_vertex(self, vertex):
         if not self.vertices:
@@ -83,9 +76,9 @@ class Graph:
 
         first = self._active_face
         face = [first]
-        curr  = first.next
+        curr = first.next
         while first != curr:
-            if not ccw(curr.origin, curr.twin.origin, vertex) >= 0:
+            if ccw(curr.origin, curr.next.origin, vertex) > 0:
                 curr = first = curr.twin
                 self._active_face = curr
                 face = []
@@ -122,9 +115,7 @@ class Graph:
                 temp.append(temp[-1].next)
                 expanded.append(temp[-1].twin)
 
-            print(len(temp), *temp)
-
-            if len(temp) > 3:
+            if len(temp) != 3:
                 continue
 
             temp = [t.origin for t in temp]
