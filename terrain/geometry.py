@@ -20,7 +20,8 @@ class Vertex(Point3):
             inserti = 0
         elif len(self.halfedges) > 1:
             last = False
-            for i,he in enumerate(self.halfedges):
+            for i in range(-1, len(self.halfedges)):
+                he = self.halfedges[i]
                 curr = ccw(he.origin, he.next.origin, new_he.origin) > 0
                 if last and not curr:
                     inserti = i
@@ -31,8 +32,8 @@ class Vertex(Point3):
         if insert:
             new_he.prev = insert.twin
             new_he.twin.next = insert.twin.next
-            insert.twin.next = new_he
             insert.twin.next.prev = new_he.twin
+            insert.twin.next = new_he
             self.halfedges.insert(inserti + 1, new_he)
         else:
             new_he.twin.next = new_he

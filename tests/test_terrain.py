@@ -51,10 +51,43 @@ def test_vertex_add_halfedge_one():
     assert vw_he.prev == uv_he
     assert vu_he.prev == wv_he
     assert wv_he.next == vu_he
+    assert wv_he.next.origin == wv_he.twin.origin
 
     w.add_halfedge(wv_he)
     assert vw_he.prev == uv_he
     assert wv_he.next == vu_he
     assert vw_he.next == wv_he
     assert wv_he.prev == vw_he
+    assert vw_he.next.origin == vw_he.twin.origin
+
+def test_vertex_add_halfedge_acute():
+    v = Vertex(0, 0, 3)
+    u = Vertex(1, 0, 3)
+    w = Vertex(0, 1, 3)
+    vu_he = Halfedge(v)
+    uv_he = Halfedge(u)
+    vu_he.twin = uv_he
+    uv_he.twin = vu_he
+    v.add_halfedge(vu_he)
+    u.add_halfedge(uv_he)
+    vw_he = Halfedge(v)
+    wv_he = Halfedge(w)
+    vw_he.twin = wv_he
+    wv_he.twin = vw_he
+    v.add_halfedge(vw_he)
+    w.add_halfedge(wv_he)
+
+    x = Vertex(1, 1, 3)
+    vx_he = Halfedge(v)
+    xv_he = Halfedge(x)
+    vx_he.twin = xv_he
+    xv_he.twin = vx_he
+    v.add_halfedge(vx_he)
+    assert len(v.halfedges) == 3
+    #assert v.halfedges.index(vx_he) == 1
+    assert xv_he.next.origin == xv_he.twin.origin
+    assert xv_he.next == vu_he
+    assert vu_he.prev == xv_he
+    assert vx_he.prev == wv_he
+    assert wv_he.next == vx_he
 
