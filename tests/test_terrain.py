@@ -84,10 +84,37 @@ def test_vertex_add_halfedge_acute():
     xv_he.twin = vx_he
     v.add_halfedge(vx_he)
     assert len(v.halfedges) == 3
-    #assert v.halfedges.index(vx_he) == 1
     assert xv_he.next.origin == xv_he.twin.origin
     assert xv_he.next == vu_he
     assert vu_he.prev == xv_he
     assert vx_he.prev == wv_he
     assert wv_he.next == vx_he
+    x.add_halfedge(xv_he)
+    assert len(x.halfedges) == 1
+    assert vx_he.next.origin == vx_he.twin.origin
+    assert vx_he.next == xv_he
+    assert xv_he.prev == vx_he
+
+def test_graph_init():
+    g = Graph()
+    assert g.gl_vertices() == []
+    assert len(g.vertices) == 4
+
+def test_graph_add_edge():
+    g = Graph()
+    g.add_edge(g.vertices[0], g.vertices[2])
+    vertices = g.gl_vertices()
+    assert len(vertices) == 6 * (3 * 3)
+    assert vertices[3:6] == vertices[12:15] # normals
+    assert vertices[6:9] == vertices[15:18] # colors
+
+def test_graph_add_vertex():
+    g = Graph()
+    v = Vertex(0.4, 0.3, random())
+    g.add_vertex(v)
+    assert len(g.vertices) == 5
+    assert len(v.halfedges) == 4
+    vertices = g.gl_vertices()
+    assert vertices.count(v.x) == 4
+    assert len(vertices) == 4 * 3 * (3 * 3)
 

@@ -1,4 +1,4 @@
-from euclid import *
+from .euclid import *
 from random import random
 
 def ccw(a, b, c):
@@ -13,6 +13,7 @@ class Vertex(Point3):
         return hash((x, y, height))
 
     def add_halfedge(self, new_he):
+        assert new_he.twin
         insert = None
         inserti = -1
         if len(self.halfedges) == 1:
@@ -22,7 +23,7 @@ class Vertex(Point3):
             last = False
             for i in range(-1, len(self.halfedges)):
                 he = self.halfedges[i]
-                curr = ccw(he.origin, he.next.origin, new_he.origin) > 0
+                curr = ccw(he.origin, he.next.origin, new_he.twin.origin) > 0
                 if last and not curr:
                     inserti = i
                     insert = he
@@ -34,7 +35,7 @@ class Vertex(Point3):
             new_he.twin.next = insert.twin.next
             insert.twin.next.prev = new_he.twin
             insert.twin.next = new_he
-            self.halfedges.insert(inserti + 1, new_he)
+            self.halfedges.insert(inserti, new_he)
         else:
             new_he.twin.next = new_he
             new_he.prev = new_he.twin
@@ -128,10 +129,4 @@ class Graph:
                 result += [*t, *normal, *color]
 
         return result
-
-if __name__=="__main__":
-    g=Graph()
-    print(g.gl_vertices())
-    g.add_vertex(Vertex(0.4, 0.3, 0.1))
-    print(g.gl_vertices())
 
