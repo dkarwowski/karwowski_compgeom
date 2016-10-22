@@ -1,4 +1,4 @@
-from ctypes import c_char_p, c_char, cast, pointer, POINTER, sizeof
+from ctypes import c_char_p, c_char, cast, pointer, POINTER, sizeof, create_string_buffer
 from pyglet.gl import *
 from euclid import *
 
@@ -7,10 +7,14 @@ class OpenGL:
     #version 130
 
     in vec3 position;
+    in vec3 normal;
     in vec3 color;
 
     out vec3 Color;
+    out vec3 Normal;
+    out vec3 FragPos;
 
+    uniform mat4 normsub;
     uniform mat4 model;
     uniform mat4 view;
     uniform mat4 proj;
@@ -18,20 +22,36 @@ class OpenGL:
     void main()
     {
         gl_Position = proj * view * model * vec4(position, 1.0);
+        FragPos = vec3(model * vec4(position, 1.0));
         Color = color;
+        Normal = mat3(normsub) * normal;
     }
     """
 
     _default_frag = """
     #version 130
 
+    in vec3 FragPos;
     in vec3 Color;
+    in vec3 Normal;
 
     out vec4 outColor;
 
+    uniform vec3 lightPos;
+    uniform vec3 lightColor;
+
     void main()
     {
-        outColor = vec4(Color, 1.0);
+        float ambientStrength = 0.1f;
+        vec3 ambient = ambientStrength * lightColor;
+
+        vec3 norm = normalize(Normal);
+        vec3 lightDir = normalize(lightPos - FragPos);
+        float diff = max(dot(norm, lightDir), 0.0);
+        vec3 diffuse = diff * lightColor;
+
+        vec3 result = (ambient + diffuse) * Color;
+        outColor = vec4(result, 1.0);
     }
     """
 
@@ -61,16 +81,22 @@ class OpenGL:
         glAttachShader(self.shader, self.fshader)
         glBindFragDataLocation(self.shader, 0, b'outColor')
         glLinkProgram(self.shader)
+        glValidateProgram(self.shader)
         glUseProgram(self.shader)
 
+        self.normmat_uni = glGetUniformLocation(self.shader, b'normsub')
         self.model_uni = glGetUniformLocation(self.shader, b'model')
         self.view_uni  = glGetUniformLocation(self.shader, b'view')
         self.proj_uni  = glGetUniformLocation(self.shader, b'proj')
+
+        self.light_color = glGetUniformLocation(self.shader, b'lightColor')
+        self.light_pos = glGetUniformLocation(self.shader, b'lightPos')
 
         glEnable(GL_DEPTH_TEST)
         self.perspective()
         self.view()
         self.model()
+        self.light()
 
     def view(self, pos=Vector3(1, 1, 1), at=Vector3(0, 0, 0), up=Vector3(0, 0, 1)):
         view_mat = Matrix4.new_look_at(pos, at, up)
@@ -94,7 +120,15 @@ class OpenGL:
                 .scale(scale, scale, scale)
         model_gl  = (GLfloat * len(model_mat[:]))(*model_mat[:])
         glUniformMatrix4fv(self.model_uni, 1, GL_FALSE, model_gl)
+        norm_mat = model_mat.inverse().transposed()
+        norm_gl = (GLfloat * len(norm_mat[:]))(*norm_mat[:])
+        glUniformMatrix4fv(self.normmat_uni, 1, GL_FALSE, norm_gl)
 
+    def light(self, pos=Vector3(0, -1.2, 2), color=(1.0, 1.0, 1.0)):
+        light_pos_gl = (GLfloat * len(pos[:]))(*pos)
+        light_color_gl = (GLfloat * len(color[:]))(*color)
+        glUniform3fv(self.light_pos, 1, light_pos_gl)
+        glUniform3fv(self.light_color, 1, light_color_gl)
 
 class Mesh:
     def __init__(self, gl, vertices=[], pos=Vector3(0, 0, 0), rotz=0, scale=1):
@@ -125,11 +159,17 @@ class Mesh:
         verts_gl = (GLfloat * len(self.vertices))(*self.vertices)
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts_gl), verts_gl, GL_STATIC_DRAW)
 
+        # position
         glEnableVertexAttribArray(0)
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 0)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 0)
 
+        # normals
         glEnableVertexAttribArray(1)
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 3 * sizeof(GLfloat))
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 3 * sizeof(GLfloat))
+
+        # colors
+        glEnableVertexAttribArray(2)
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 6 * sizeof(GLfloat))
 
         glBindVertexArray(0)
 
@@ -141,5 +181,5 @@ class Mesh:
 
         glBindVertexArray(self.vao)
         self.gl.model(pos=self.pos, rotz=self.rotz, scale=self.scale)
-        glDrawArrays(GL_TRIANGLES, 0, len(self.vertices)//6)
+        glDrawArrays(GL_TRIANGLES, 0, len(self.vertices)//9)
         glBindVertexArray(0)

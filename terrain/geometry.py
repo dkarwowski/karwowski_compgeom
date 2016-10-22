@@ -71,6 +71,7 @@ class Graph:
         self.add_edge(self.vertices[1], self.vertices[2])
         self.add_edge(self.vertices[2], self.vertices[3])
         self.add_edge(self.vertices[3], self.vertices[0])
+        self.add_edge(self.vertices[0], self.vertices[2])
         self._active_face = self.vertices[0].halfedges[0]
 
     def add_vertex(self, vertex):
@@ -81,7 +82,7 @@ class Graph:
         face = [first]
         curr = first.next
         while first != curr:
-            if ccw(curr.origin, curr.next.origin, vertex) > 0:
+            if ccw(curr.origin, curr.next.origin, vertex) <= 0:
                 curr = first = curr.twin
                 self._active_face = curr
                 face = []
@@ -91,6 +92,7 @@ class Graph:
         for he in face:
             self.add_edge(he.origin, vertex)
         self.vertices.append(vertex)
+        self._active_face = vertex.halfedges[0]
 
     def add_edge(self, u, v):
         u_he = Halfedge(u)
@@ -122,11 +124,22 @@ class Graph:
                 continue
 
             temp = [t.origin for t in temp]
-            normal = (temp[1]-temp[0]).cross(temp[1]-temp[2]).normalize()
+            normal = (temp[0]-temp[2]).cross(temp[1]-temp[0]).normalize()
             color = [random(), random(), random()]
 
             for t in temp:
                 result += [*t, *normal, *color]
+
+        color = [0.3, 0.3, 0.3]
+        square = self.vertices[:4]
+        for i in range(-1, 3):
+            normal = (square[i] - Vector3(*square[i+1][:2], 0.0)).cross(square[i+1] - Vector3(*square[i+1][:2], 0.0)).normalize()
+            result += [*(square[i]), *normal, *color]
+            result += [*(square[i][:2]), 0.0, *normal, *color]
+            result += [*(square[i+1][:2]), 0.0, *normal, *color]
+            result += [*(square[i]), *normal, *color]
+            result += [*(square[i+1][:2]), 0.0, *normal, *color]
+            result += [*(square[i+1]), *normal, *color]
 
         return result
 

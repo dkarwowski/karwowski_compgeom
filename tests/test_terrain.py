@@ -97,24 +97,30 @@ def test_vertex_add_halfedge_acute():
 
 def test_graph_init():
     g = Graph()
-    assert g.gl_vertices() == []
+    assert len(g.gl_vertices()) == (2 + 4 * 2) * (3 * 3 * 3)
     assert len(g.vertices) == 4
 
 def test_graph_add_edge():
     g = Graph()
     g.add_edge(g.vertices[0], g.vertices[2])
-    vertices = g.gl_vertices()
-    assert len(vertices) == 6 * (3 * 3)
-    assert vertices[3:6] == vertices[12:15] # normals
-    assert vertices[6:9] == vertices[15:18] # colors
+    v1 = [he.twin for he in g.vertices[0].halfedges]
+    v2 = [he.twin for he in g.vertices[2].halfedges]
+    assert any(he in v2 for he in g.vertices[0].halfedges)
+    assert any(he in v1 for he in g.vertices[2].halfedges)
 
 def test_graph_add_vertex():
     g = Graph()
     v = Vertex(0.4, 0.3, random())
     g.add_vertex(v)
     assert len(g.vertices) == 5
-    assert len(v.halfedges) == 4
-    vertices = g.gl_vertices()
-    assert vertices.count(v.x) == 4
-    assert len(vertices) == 4 * 3 * (3 * 3)
+    assert len(v.halfedges) == 3
+    for h in v.halfedges:
+        curr = h.next
+        count = 1
+        while curr != h:
+            curr = curr.next
+            count += 1
+        assert count == 3
+    for i in range(-1, 2):
+        assert v.halfedges[i].prev.twin == v.halfedges[i+1]
 
