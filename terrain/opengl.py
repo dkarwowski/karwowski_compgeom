@@ -37,12 +37,13 @@ class OpenGL:
 
     out vec4 outColor;
 
+    uniform vec3 viewPos;
     uniform vec3 lightPos;
     uniform vec3 lightColor;
 
     void main()
     {
-        float ambientStrength = 0.1f;
+        float ambientStrength = 0.2f;
         vec3 ambient = ambientStrength * lightColor;
 
         vec3 norm = normalize(Normal);
@@ -50,7 +51,13 @@ class OpenGL:
         float diff = max(dot(norm, lightDir), 0.0);
         vec3 diffuse = diff * lightColor;
 
-        vec3 result = (ambient + diffuse) * Color;
+        float specularStrength = 0.5f;
+        vec3 viewDir = normalize(viewPos - FragPos);
+        vec3 reflectDir = reflect(-lightDir, norm);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16);
+        vec3 specular = specularStrength * spec * lightColor;
+
+        vec3 result = (ambient + diffuse + specular) * Color;
         outColor = vec4(result, 1.0);
     }
     """
@@ -89,6 +96,7 @@ class OpenGL:
         self.view_uni  = glGetUniformLocation(self.shader, b'view')
         self.proj_uni  = glGetUniformLocation(self.shader, b'proj')
 
+        self.view_pos = glGetUniformLocation(self.shader, b'viewPos')
         self.light_color = glGetUniformLocation(self.shader, b'lightColor')
         self.light_pos = glGetUniformLocation(self.shader, b'lightPos')
 
@@ -102,6 +110,8 @@ class OpenGL:
         view_mat = Matrix4.new_look_at(pos, at, up)
         view_gl  = (GLfloat * len(view_mat[:]))(*view_mat[:])
         glUniformMatrix4fv(self.view_uni, 1, GL_FALSE, view_gl)
+        view_pos_gl = (GLfloat * len(pos[:]))(*pos)
+        glUniform3fv(self.view_pos, 1, view_pos_gl)
 
     def perspective(self, fov=math.pi/2, ratio=16/9, fnear=0.1, ffar=10.0):
         proj_mat = Matrix4.new_perspective(fov, ratio, fnear, ffar)
@@ -124,9 +134,9 @@ class OpenGL:
         norm_gl = (GLfloat * len(norm_mat[:]))(*norm_mat[:])
         glUniformMatrix4fv(self.normmat_uni, 1, GL_FALSE, norm_gl)
 
-    def light(self, pos=Vector3(0, -1.2, 2), color=(1.0, 1.0, 1.0)):
+    def light(self, pos=Vector3(0, -0.2, 2), color=(1.0, 1.0, 1.0)):
         light_pos_gl = (GLfloat * len(pos[:]))(*pos)
-        light_color_gl = (GLfloat * len(color[:]))(*color)
+        light_color_gl = (GLfloat * len(color))(*color)
         glUniform3fv(self.light_pos, 1, light_pos_gl)
         glUniform3fv(self.light_color, 1, light_color_gl)
 
@@ -153,12 +163,15 @@ class Mesh:
         glGenBuffers(1, pointer(self.vbo))
         #glGenBuffers(1, pointer(self.ebo))
 
+        self.swap_vertices(self.vertices)
+
+    def swap_vertices(self, vertices):
+        self.vertices = vertices
         glBindVertexArray(self.vao)
-        # bind buffer data
+
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         verts_gl = (GLfloat * len(self.vertices))(*self.vertices)
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts_gl), verts_gl, GL_STATIC_DRAW)
-
         # position
         glEnableVertexAttribArray(0)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 0)

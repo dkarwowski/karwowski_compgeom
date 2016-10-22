@@ -5,6 +5,7 @@ import ctypes as c
 import pyglet
 from pyglet.gl import *
 from pyglet.window import mouse, key
+from random import random
 
 from .opengl import OpenGL, Mesh
 from .euclid import *
@@ -28,10 +29,13 @@ meshes = [
         Mesh(opengl, pos=Vector3(-0.85, 0, 0), scale=0.5),
         Mesh(opengl, pos=Vector3(0.85, 0, 0), scale=0.5),
         ]
+graphs = [
+        Graph(),
+        Graph()
+        ]
 
-test = Graph()
-#test.add_edge(test.vertices[0], test.vertices[2])
-test.add_vertex(Vertex(0.8, 0.4, 0.9))
+graphs[0].add_edge(graphs[0].vertices[0], graphs[0].vertices[2])
+graphs[1].add_edge(graphs[1].vertices[1], graphs[1].vertices[3])
 
 cam_pos = Vector3(0, -1.0, 1.0)
 cam_at  = Vector3(0, 1.0, -0.5)
@@ -48,6 +52,12 @@ def on_mouse_release(x, y, button, modifiers):
     global window
     # add check that depends on where x & y is
     window.set_exclusive_mouse(False)
+
+    p = Vertex(random()*2 - 1, random()*2 - 1, random())
+    graphs[0].add_vertex(p.copy())
+    graphs[1].add_vertex(p.copy())
+    meshes[0].swap_vertices(graphs[0].gl_vertices())
+    meshes[1].swap_vertices(graphs[1].gl_vertices())
 
 @window.event
 def on_mouse_drag(x, y, dx, dy, button, modifiers):
@@ -71,18 +81,20 @@ def on_draw():
             pos=Vector3(window.width/2, window.height/2, 1),
             at=Vector3(window.width/2, window.height/2, 0),
             up=Vector3(0, 1, 0))
+    opengl.light(pos=Vector3(window.width/2, window.height/2, 1))
     v = [
-            99.5, 99.5, 0, 0.9, 0.9, 0.9,
-            99.5,  9.5, 0, 0.9, 0.9, 0.9,
-             9.5, 99.5, 0, 0.9, 0.9, 0.9
+            99.5, 99.5, 0, 0, 0, 0, 0.9, 0.9, 0.9,
+            99.5,  9.5, 0, 0, 0, 0, 0.9, 0.9, 0.9,
+             9.5, 99.5, 0, 0, 0, 0, 0.9, 0.9, 0.9
             ]
     mesh = Mesh(opengl, vertices=v, pos=Vector3(window.width/2, window.height/2, 0))
     mesh.draw()
+    opengl.light()
     opengl.view(cam_pos, cam_pos + cam_at, cam_up)
     opengl.orthographic(scale=1.0)
 
 def update(dt):
-    global cam_pos, cam_at, cam_up, opengl
+    global cam_pos, cam_at, cam_up, opengl, count
 
     if keys[key.W]:
         cam_pos += cam_at.normalized() * dt
@@ -96,48 +108,8 @@ def update(dt):
     opengl.view(cam_pos, cam_pos + cam_at, cam_up)
 
 # generate meshes
-meshes[0].vertices = [
-        -1.0,  1.0, 0.2, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-        -1.0, -1.0, 0.3, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-         1.0, -1.0, 0.4, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-
-         1.0, -1.0, 0.4, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0,
-         1.0,  1.0, 0.5, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0,
-        -1.0,  1.0, 0.2, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0,
-
-        -1.0,  1.0, 0.2, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0,  1.0, 0.0, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0, -1.0, 0.0, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-                                  
-        -1.0,  1.0, 0.2, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0, -1.0, 0.0, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0, -1.0, 0.3, -1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-
-        -1.0, -1.0, 0.3, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-         1.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-                                  
-        -1.0, -1.0, 0.3, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-         1.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-         1.0, -1.0, 0.4, 0.0, -1.0, 0.0, 0.3, 0.3, 0.3,
-
-         1.0, -1.0, 0.4, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-         1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-         1.0,  1.0, 0.0, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-
-         1.0, -1.0, 0.4, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-         1.0,  1.0, 0.0, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-         1.0,  1.0, 0.5, 1.0, 0.0, 0.0, 0.3, 0.3, 0.3,
-
-         1.0,  1.0, 0.5, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3,
-         1.0,  1.0, 0.0, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0,  1.0, 0.0, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3,
-
-         1.0,  1.0, 0.5, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0,  1.0, 0.0, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3,
-        -1.0,  1.0, 0.2, 0.0, 1.0, 0.0, 0.3, 0.3, 0.3
-        ]
-meshes[1].vertices = test.gl_vertices()
+meshes[0].vertices = graphs[0].gl_vertices()
+meshes[1].vertices = graphs[1].gl_vertices()
 
 pyglet.clock.schedule_interval(update, 1/60)
 pyglet.app.run()
