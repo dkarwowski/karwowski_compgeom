@@ -1,6 +1,6 @@
 from ctypes import c_char_p, c_char, cast, pointer, POINTER, sizeof, create_string_buffer
 from pyglet.gl import *
-from euclid import *
+from .euclid import *
 
 class Shader:
     def __init__(self, handle):
