@@ -7,7 +7,7 @@ from pyglet.gl import *
 from pyglet.window import mouse, key
 from random import random
 
-from .opengl import OpenGL, Mesh
+from .opengl import ShaderLoader, Mesh, Camera
 from .euclid import *
 from .geometry import Graph, Vertex
 
@@ -23,11 +23,11 @@ window.set_minimum_size(800, 450)
 mouse_sensitivity = 0.005
 
 # game objects
-opengl = OpenGL()
-opengl.orthographic()
+shader = ShaderLoader.get_shader()
+glUseProgram(shader.handle)
 meshes = [
-        Mesh(opengl, pos=Vector3(-0.85, 0, 0), scale=0.5),
-        Mesh(opengl, pos=Vector3(0.85, 0, 0), scale=0.5),
+        Mesh(shader, pos=Vector3(-0.85, 0, 0), scale=0.5),
+        Mesh(shader, pos=Vector3(0.85, 0, 0), scale=0.5),
         ]
 graphs = [
         Graph(),
@@ -37,9 +37,19 @@ graphs = [
 graphs[0].add_edge(graphs[0].vertices[0], graphs[0].vertices[2])
 graphs[1].add_edge(graphs[1].vertices[1], graphs[1].vertices[3])
 
-cam_pos = Vector3(0, -1.0, 1.0)
-cam_at  = Vector3(0, 1.0, -0.5)
-cam_up  = Vector3(0, 0, 1)
+cam = Camera(Vector3(0, -1.0, 1.0), Vector3(0, 1.0, -0.5), Vector3(0, 0, 1))
+cam.set_ortho(1.0, window.width/window.height, 0.1, 10.0)
+proj_gl = cam.get_proj()
+glUniformMatrix4fv(shader.uni('proj'), 1, GL_FALSE, proj_gl)
+
+light_pos = Vector3(0, -0.2, 2)
+light_pos_gl = (GLfloat * len(light_pos[:]))(*light_pos)
+glUniform3fv(shader.uni('lightPos'), 1, light_pos_gl)
+light_color = (1.0, 1.0, 1.0)
+light_color_gl = (GLfloat * len(light_color))(*light_color)
+glUniform3fv(shader.uni('lightColor'), 1, light_color_gl)
+
+glEnable(GL_DEPTH_TEST)
 
 @window.event
 def on_mouse_press(x, y, button, modifiers):
@@ -56,8 +66,8 @@ def on_mouse_release(x, y, button, modifiers):
     p = Vertex(random()*2 - 1, random()*2 - 1, random())
     graphs[0].add_vertex(p.copy())
     graphs[1].add_vertex(p.copy())
-    meshes[0].swap_vertices(graphs[0].gl_vertices())
-    meshes[1].swap_vertices(graphs[1].gl_vertices())
+    meshes[0].set_vertices(graphs[0].gl_vertices())
+    meshes[1].set_vertices(graphs[1].gl_vertices())
 
 @window.event
 def on_mouse_drag(x, y, dx, dy, button, modifiers):
@@ -74,38 +84,22 @@ def on_draw():
     for m in meshes:
         m.draw()
 
-    # draw ui
-    glClear(GL_DEPTH_BUFFER_BIT)
-    opengl.orthographic(scale=window.height)
-    opengl.view(
-            pos=Vector3(window.width/2, window.height/2, 1),
-            at=Vector3(window.width/2, window.height/2, 0),
-            up=Vector3(0, 1, 0))
-    opengl.light(pos=Vector3(window.width/2, window.height/2, 1))
-    v = [
-            99.5, 99.5, 0, 0, 0, 0, 0.9, 0.9, 0.9,
-            99.5,  9.5, 0, 0, 0, 0, 0.9, 0.9, 0.9,
-             9.5, 99.5, 0, 0, 0, 0, 0.9, 0.9, 0.9
-            ]
-    mesh = Mesh(opengl, vertices=v, pos=Vector3(window.width/2, window.height/2, 0))
-    mesh.draw()
-    opengl.light()
-    opengl.view(cam_pos, cam_pos + cam_at, cam_up)
-    opengl.orthographic(scale=1.0)
-
 def update(dt):
-    global cam_pos, cam_at, cam_up, opengl, count
+    global cam, shader
 
     if keys[key.W]:
-        cam_pos += cam_at.normalized() * dt
+        cam.pos += cam.at.normalized() * dt
     if keys[key.S]:
-        cam_pos -= cam_at.normalized() * dt
+        cam.pos -= cam.at.normalized() * dt
     if keys[key.A]:
-        cam_pos -= cam_at.cross(cam_up).normalized() * dt
+        cam.pos -= cam.at.cross(cam.up).normalized() * dt
     if keys[key.D]:
-        cam_pos += cam_at.cross(cam_up).normalized() * dt
+        cam.pos += cam.at.cross(cam.up).normalized() * dt
 
-    opengl.view(cam_pos, cam_pos + cam_at, cam_up)
+    view_gl = cam.get_view()
+    glUniformMatrix4fv(shader.uni('view'), 1, GL_FALSE, view_gl)
+    view_pos_gl = cam.get_view_pos()
+    glUniform3fv(shader.uni('viewPos'), 1, view_pos_gl)
 
 # generate meshes
 meshes[0].vertices = graphs[0].gl_vertices()

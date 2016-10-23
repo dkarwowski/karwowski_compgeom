@@ -2,147 +2,113 @@ from ctypes import c_char_p, c_char, cast, pointer, POINTER, sizeof, create_stri
 from pyglet.gl import *
 from euclid import *
 
-class OpenGL:
-    _default_vert = """
-    #version 130
+class Shader:
+    def __init__(self, handle):
+        self.handle = handle
+        self.uniforms = dict()
 
-    in vec3 position;
-    in vec3 normal;
-    in vec3 color;
+    def uni(self, var):
+        return self.uniforms.setdefault(
+            var,
+            glGetUniformLocation(self.handle, bytes(var, 'utf8'))
+        )
 
-    out vec3 Color;
-    out vec3 Normal;
-    out vec3 FragPos;
+class ShaderLoader:
+    shaders = dict()
 
-    uniform mat4 normsub;
-    uniform mat4 model;
-    uniform mat4 view;
-    uniform mat4 proj;
+    def _get_shader(cls, vertpath='3d.vert', fragpath='3d.frag'):
+        vpath = "./resources/shaders/" + vertpath
+        fpath = "./resources/shaders/" + fragpath
+        if (vpath, fpath) in cls.shaders:
+            return cls.shaders[(vpath, fpath)]
 
-    void main()
-    {
-        gl_Position = proj * view * model * vec4(position, 1.0);
-        FragPos = vec3(model * vec4(position, 1.0));
-        Color = color;
-        Normal = mat3(normsub) * normal;
-    }
-    """
+        vshader = cls._load_shader(vpath, GL_VERTEX_SHADER)
+        fshader = cls._load_shader(fpath, GL_FRAGMENT_SHADER)
 
-    _default_frag = """
-    #version 130
+        shader = glCreateProgram()
+        glAttachShader(shader, vshader)
+        glAttachShader(shader, fshader)
 
-    in vec3 FragPos;
-    in vec3 Color;
-    in vec3 Normal;
+        glLinkProgram(shader)
 
-    out vec4 outColor;
+        success = GLint()
+        glGetProgramiv(shader, GL_LINK_STATUS, pointer(success))
+        if success.value != GL_TRUE:
+            logsize = GLint()
+            glGetProgramiv(shader, GL_INFO_LOG_LENGTH, pointer(logsize))
+            log = create_string_buffer(logsize.value)
+            glGetProgramInfoLog(shader, logsize.value, 0, log)
+            print("link error:", log.value)
 
-    uniform vec3 viewPos;
-    uniform vec3 lightPos;
-    uniform vec3 lightColor;
+        glValidateProgram(shader)
+        glGetProgramiv(shader, GL_VALIDATE_STATUS, pointer(success))
+        if success.value != GL_TRUE:
+            logsize = GLint()
+            glGetProgramiv(shader, GL_INFO_LOG_LENGTH, pointer(logsize))
+            log = create_string_buffer(logsize.value)
+            glGetProgramInfoLog(shader, logsize.value, 0, log)
+            print("valid error:", log.value)
 
-    void main()
-    {
-        float ambientStrength = 0.2f;
-        vec3 ambient = ambientStrength * lightColor;
+        s = Shader(shader)
+        cls.shaders[(vpath, fpath)] = s
+        return s
+    get_shader = classmethod(_get_shader)
 
-        vec3 norm = normalize(Normal);
-        vec3 lightDir = normalize(lightPos - FragPos);
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
+    def _load_shader(cls, path, shader_type):
+        with open(path) as source:
+            shader = glCreateShader(shader_type)
 
-        float specularStrength = 0.5f;
-        vec3 viewDir = normalize(viewPos - FragPos);
-        vec3 reflectDir = reflect(-lightDir, norm);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16);
-        vec3 specular = specularStrength * spec * lightColor;
+            buff = c_char_p(bytes(source.read(), 'utf8'))
+            glShaderSource(shader, 1, cast(pointer(buff), POINTER(POINTER(c_char))), None)
 
-        vec3 result = (ambient + diffuse + specular) * Color;
-        outColor = vec4(result, 1.0);
-    }
-    """
+            glCompileShader(shader)
 
-    def __init__(self, vertpath=None, fragpath=None):
-        vert = OpenGL._default_vert
-        frag = OpenGL._default_frag
+            success = GLint()
+            glGetShaderiv(shader, GL_COMPILE_STATUS, pointer(success))
+            if success.value != GL_TRUE:
+                logsize = GLint()
+                glGetShaderiv(shader, GL_INFO_LOG_LENGTH, pointer(logsize))
+                log = create_string_buffer(logsize.value)
+                glGetShaderInfoLog(shader, logsize.value, 0, log)
+                print("compile error:", log.value)
 
-        if vertpath:
-            with open(vertpath, 'r') as v:
-                vert = v.read()
-        if fragpath:
-            with open(fragpath, 'r') as f:
-                frag = f.read()
+            return shader
+        return None
+    _load_shader = classmethod(_load_shader)
 
-        self.vshader = glCreateShader(GL_VERTEX_SHADER)
-        vert = c_char_p(bytes(vert, 'utf8'))
-        glShaderSource(self.vshader, 1, cast(pointer(vert), POINTER(POINTER(c_char))), None)
-        glCompileShader(self.vshader)
+class Camera:
+    def __init__(self, pos, to, up):
+        self.pos = pos
+        self.to  = to
+        self.up  = up
 
-        self.fshader = glCreateShader(GL_FRAGMENT_SHADER)
-        frag = c_char_p(bytes(frag, 'utf8'))
-        glShaderSource(self.fshader, 1, cast(pointer(frag), POINTER(POINTER(c_char))), None)
-        glCompileShader(self.fshader)
+        self.is_persp = False
+        self.proj = Matrix4()
 
-        self.shader = glCreateProgram()
-        glAttachShader(self.shader, self.vshader)
-        glAttachShader(self.shader, self.fshader)
-        glBindFragDataLocation(self.shader, 0, b'outColor')
-        glLinkProgram(self.shader)
-        glValidateProgram(self.shader)
-        glUseProgram(self.shader)
+    def set_persp(self, fov, aspect, z_near, z_far):
+        self.proj = Matrix4.new_perspective(fov, aspect, z_near, z_far)
+        self.is_persp = True
 
-        self.normmat_uni = glGetUniformLocation(self.shader, b'normsub')
-        self.model_uni = glGetUniformLocation(self.shader, b'model')
-        self.view_uni  = glGetUniformLocation(self.shader, b'view')
-        self.proj_uni  = glGetUniformLocation(self.shader, b'proj')
+    def set_ortho(self, scale, aspect, z_near, z_far):
+        self.proj = Matrix4.new_orthographic(scale, aspect, z_near, z_far)
+        self.is_persp = False
 
-        self.view_pos = glGetUniformLocation(self.shader, b'viewPos')
-        self.light_color = glGetUniformLocation(self.shader, b'lightColor')
-        self.light_pos = glGetUniformLocation(self.shader, b'lightPos')
+    def get_proj(self):
+        proj_gl = (GLfloat * len(self.proj[:]))(*self.proj[:])
+        return proj_gl
 
-        glEnable(GL_DEPTH_TEST)
-        self.perspective()
-        self.view()
-        self.model()
-        self.light()
-
-    def view(self, pos=Vector3(1, 1, 1), at=Vector3(0, 0, 0), up=Vector3(0, 0, 1)):
-        view_mat = Matrix4.new_look_at(pos, at, up)
+    def get_view(self):
+        view_mat = Matrix4.new_look_at(self.pos, self.to + self.pos, self.up)
         view_gl  = (GLfloat * len(view_mat[:]))(*view_mat[:])
-        glUniformMatrix4fv(self.view_uni, 1, GL_FALSE, view_gl)
-        view_pos_gl = (GLfloat * len(pos[:]))(*pos)
-        glUniform3fv(self.view_pos, 1, view_pos_gl)
+        return view_gl
 
-    def perspective(self, fov=math.pi/2, ratio=16/9, fnear=0.1, ffar=10.0):
-        proj_mat = Matrix4.new_perspective(fov, ratio, fnear, ffar)
-        proj_gl  = (GLfloat * len(proj_mat[:]))(*proj_mat[:])
-        glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, proj_gl)
-
-    def orthographic(self, scale=1.0, ratio=16/9, fnear=0.1, ffar=10.0):
-        ortho_mat = Matrix4.new_orthographic(scale, ratio, fnear, ffar)
-        ortho_gl  = (GLfloat * len(ortho_mat[:]))(*ortho_mat[:])
-        glUniformMatrix4fv(self.proj_uni, 1, GL_FALSE, ortho_gl)
-
-    def model(self, pos=Vector3(0, 0, 0), rotz=0, scale=1.0):
-        model_mat = Matrix4()\
-                .translate(*pos[:])\
-                .rotatez(rotz)\
-                .scale(scale, scale, scale)
-        model_gl  = (GLfloat * len(model_mat[:]))(*model_mat[:])
-        glUniformMatrix4fv(self.model_uni, 1, GL_FALSE, model_gl)
-        norm_mat = model_mat.inverse().transposed()
-        norm_gl = (GLfloat * len(norm_mat[:]))(*norm_mat[:])
-        glUniformMatrix4fv(self.normmat_uni, 1, GL_FALSE, norm_gl)
-
-    def light(self, pos=Vector3(0, -0.2, 2), color=(1.0, 1.0, 1.0)):
-        light_pos_gl = (GLfloat * len(pos[:]))(*pos)
-        light_color_gl = (GLfloat * len(color))(*color)
-        glUniform3fv(self.light_pos, 1, light_pos_gl)
-        glUniform3fv(self.light_color, 1, light_color_gl)
+    def get_view_pos(self):
+        view_pos_gl = (GLfloat * len(self.pos[:]))(*self.pos)
+        return view_pos_gl
 
 class Mesh:
-    def __init__(self, gl, vertices=[], pos=Vector3(0, 0, 0), rotz=0, scale=1):
-        self.gl = gl
+    def __init__(self, shader, vertices=[], pos=Vector3(0, 0, 0), rotz=0, scale=1):
+        self.shader = shader
         self.vertices = vertices
 
         self.glsetup = False
@@ -163,9 +129,9 @@ class Mesh:
         glGenBuffers(1, pointer(self.vbo))
         #glGenBuffers(1, pointer(self.ebo))
 
-        self.swap_vertices(self.vertices)
+        self.set_vertices(self.vertices)
 
-    def swap_vertices(self, vertices):
+    def set_vertices(self, vertices):
         self.vertices = vertices
         glBindVertexArray(self.vao)
 
@@ -175,11 +141,9 @@ class Mesh:
         # position
         glEnableVertexAttribArray(0)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 0)
-
         # normals
         glEnableVertexAttribArray(1)
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 3 * sizeof(GLfloat))
-
         # colors
         glEnableVertexAttribArray(2)
         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), 6 * sizeof(GLfloat))
@@ -193,6 +157,17 @@ class Mesh:
             return
 
         glBindVertexArray(self.vao)
-        self.gl.model(pos=self.pos, rotz=self.rotz, scale=self.scale)
+
+        model_mat = Matrix4()\
+                .translate(*self.pos)\
+                .rotatez(self.rotz)\
+                .scale(*((self.scale,) * 3))
+        model_gl = (GLfloat * len(model_mat[:]))(*model_mat[:])
+        glUniformMatrix4fv(self.shader.uni('model'), 1, GL_FALSE, model_gl)
+
+        norm_mat = model_mat.inverse().transposed()
+        norm_gl  = (GLfloat * len(norm_mat[:]))(*norm_mat[:])
+        glUniformMatrix4fv(self.shader.uni('norm'), 1, GL_FALSE, norm_gl)
         glDrawArrays(GL_TRIANGLES, 0, len(self.vertices)//9)
+
         glBindVertexArray(0)
